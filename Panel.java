@@ -31,9 +31,10 @@ public class Panel extends JPanel implements Runnable {
     private boolean gameOver = false;
     private boolean levelWon = false;
     private boolean gameWon = false;
-    private int currentLevel = 1;
+    private int currentLevel = 4;
     private int score = 0;
     private final Random random = new Random();
+    private boolean AI = true;
 
     // constructor
     Panel() {
@@ -87,10 +88,19 @@ public class Panel extends JPanel implements Runnable {
                     paddle.render(g);
 
                     // render-ball
-                    ball.render(g);
+                    ball.render(g, AI);
 
                     // render-bricks
                     bricks.forEach(brick -> brick.render(g));
+                    if(AI) {
+                        g.setColor(Color.BLUE);
+                        g.setFont(new Font("Arial", Font.BOLD, 40));
+                        g.drawString("BREAKOUT", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT / 2 - 110);
+
+                        g.setColor(Color.YELLOW);
+                        g.setFont(new Font("Arial", Font.BOLD, 16));
+                        g.drawString("PRESS SPACE TO START", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 80);
+                    }
                 } else {
                     g.setColor(Color.ORANGE);
                     g.setFont(new Font("Arial", Font.BOLD, 40));
@@ -124,12 +134,13 @@ public class Panel extends JPanel implements Runnable {
             if(brick.status() && !brick.isHardBrick()) bricksRemaining++;
 
         // player-has-won-the-current-level
-        if(bricksRemaining == 0) {
+        if(bricksRemaining == 0 && !AI) {
             currentLevel ++;
             score = ball.score();
             if(currentLevel > 15) gameWon = true;
             else levelWon = true;
         }
+        else if(bricksRemaining == 0) initGame();
     }
     // key-adapter
     private class MyKeyAdapter extends KeyAdapter {
@@ -137,18 +148,24 @@ public class Panel extends JPanel implements Runnable {
         public void keyPressed(KeyEvent e) {
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_A -> {
-                    if(paddle.getDirection() == 's') paddle.changeDirection('l');
+                    if(paddle.getDirection() == 's' && !AI) paddle.changeDirection('l');
                 }
                 case KeyEvent.VK_D -> {
-                    if(paddle.getDirection() == 's') paddle.changeDirection('r');
+                    if(paddle.getDirection() == 's' && !AI) paddle.changeDirection('r');
                 }
                 case KeyEvent.VK_SPACE -> {
-                    if(gameOver) {
+                    if(!AI) {
+                        if (gameOver) {
+                            initGame();
+                            gameOver = false;
+                        } else if (levelWon) {
+                            initGame();
+                            levelWon = false;
+                        }
+                    } else {
+                        currentLevel = 1;
+                        AI = false;
                         initGame();
-                        gameOver = false;
-                    } else if(levelWon) {
-                        initGame();
-                        levelWon = false;
                     }
                 }
             }
@@ -182,7 +199,7 @@ public class Panel extends JPanel implements Runnable {
                 ball.move();
 
                 // ball-collisions
-                ball.collide(SCREEN_WIDTH, paddle);
+                ball.collide(SCREEN_WIDTH, paddle, AI);
 
                 // bricks-collisions
                 bricks.forEach(brick -> brick.collide(ball));
@@ -192,6 +209,9 @@ public class Panel extends JPanel implements Runnable {
 
                 // check-current-level-status
                 checkCurrentLevel();
+
+                // ai-paddle
+                if(AI) paddle.ai(ball);
 
                 repaint();
                 delta --;

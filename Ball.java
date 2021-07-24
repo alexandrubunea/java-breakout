@@ -45,26 +45,28 @@ public class Ball {
     }
 
     // ball-render
-    public void render(Graphics g) {
+    public void render(Graphics g, boolean AI) {
         // render-ball
         g.setColor(Color.WHITE);
         g.fillOval(this.x, this.y, this.radius, this.radius);
 
-        // render-lives
-        g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 15));
-        g.drawString("REMAINING LIVES: ", 10, 15);
+        if(!AI) {
+            // render-lives
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 15));
+            g.drawString("REMAINING LIVES: ", 10, 15);
 
-        g.setColor(Color.RED);
-        int location_x = 130;
-        for(int i = 1; i <= livesRemaining; i++) {
-            g.fillOval(location_x + 20, 3, 15, 15);
-            location_x = location_x + 20;
+            g.setColor(Color.RED);
+            int location_x = 130;
+            for (int i = 1; i <= livesRemaining; i++) {
+                g.fillOval(location_x + 20, 3, 15, 15);
+                location_x = location_x + 20;
+            }
+
+            // render-score
+            g.setColor(Color.WHITE);
+            g.drawString("SCORE: " + this.score, 10, 40);
         }
-
-        // render-score
-        g.setColor(Color.WHITE);
-        g.drawString("SCORE: " + this.score, 10, 40);
     }
 
     // ball-movement
@@ -80,7 +82,7 @@ public class Ball {
     public void reverseSpeedX() { this.speedX = -this.speedX; }
 
     // ball-collisions
-    public void collide(int RIGHT_LIMIT, Paddle paddle) {
+    public void collide(int RIGHT_LIMIT, Paddle paddle, boolean AI) {
         // with the walls
         if(this.centerX - this.radius / 2 < 0 && this.speedX < 0) this.speedX = -this.speedX;
         else if(this.centerX + this.radius / 2 > RIGHT_LIMIT && this.speedX > 0) this.speedX = -this.speedX;
@@ -88,8 +90,10 @@ public class Ball {
         if(this.centerY - this.radius / 2 < 0 && this.speedY < 0) this.speedY = -this.speedY;
         else if(this.centerY + this.radius / 2 > paddle.centerY() + paddle.height() / 2 && this.speedY > 0) {
             init();
-            livesRemaining--;
-            if(livesRemaining == 0) gameOver = true;
+            if(!AI) {
+                livesRemaining--;
+                if (livesRemaining == 0) gameOver = true;
+            }
         }
 
         // with the paddle
@@ -106,6 +110,7 @@ public class Ball {
             this.speedX = (int) -(BALL_VELOCITY_X * Math.sin(bounceAngle));
 
             if(this.speedY == 0) this.speedY = -BALL_VELOCITY_Y;
+            if(this.speedX == 0 && AI) this.speedX = BALL_VELOCITY_X;
         }
     }
 

@@ -42,6 +42,21 @@ public class Paddle {
         g.fillRect(this.x, this.y, this.width, this.height);
     }
 
+    // AI
+    private int modulo(int x) {
+        if(x < 0) x = -x;
+        return x;
+    }
+    public void ai(Ball ball) {
+        if(modulo(ball.centerY() - this.centerY) < 300 && ball.speedY() > 0) {
+            if(!(ball.centerX() + ball.radius() / 2 >= this.centerX - this.width / 4 &&
+            ball.centerX() - ball.radius() / 2 <= this.centerX + this.width / 4)) {
+                if(ball.centerX() > this.centerX) changeDirection('r');
+                else if(ball.centerX() < this.centerX) changeDirection('l');
+            } else changeDirection('s');
+        }
+    }
+
     // get-props
     public int centerX() { return this.centerX; }
     public int centerY() { return this.centerY; }
