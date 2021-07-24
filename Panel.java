@@ -25,10 +25,15 @@ public class Panel extends JPanel implements Runnable {
     private static final int BRICK_HEIGHT = 25;
     private static final int BRICK_GAP = 5;
     private static final int TOP_GAP = 100;
-    private ArrayList<Brick> bricks = new ArrayList<>();
+    private ArrayList<Brick> bricks;
 
     // game-props
-    private Thread gameThread = new Thread(this);
+    private boolean gameOver = false;
+    private boolean levelWon = false;
+    private boolean gameWon = false;
+    private int currentLevel = 1;
+    private int score = 0;
+    private final Random random = new Random();
 
     // constructor
     Panel() {
@@ -39,6 +44,7 @@ public class Panel extends JPanel implements Runnable {
         initGame();
 
         this.addKeyListener(new MyKeyAdapter());
+        Thread gameThread = new Thread(this);
         gameThread.start();
 
     }
@@ -49,14 +55,18 @@ public class Panel extends JPanel implements Runnable {
         paddle = new Paddle(SCREEN_WIDTH / 2 - PADDLE_WIDTH / 2, BOTTOM_LIMIT - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
 
         // ball
-        ball = new Ball(SCREEN_WIDTH / 2 - BALL_RADIUS / 2, BOTTOM_LIMIT - 4*BALL_RADIUS, BALL_RADIUS);
+        ball = new Ball(SCREEN_WIDTH / 2 - BALL_RADIUS / 2, BOTTOM_LIMIT - 4*BALL_RADIUS, BALL_RADIUS, score);
 
         // bricks
+        bricks = new ArrayList<>();
         int location_y = TOP_GAP - BRICK_HEIGHT;
         int location_x = 0;
-        for(int i = 0; i < 6; i++) {
-            for(int j = 0; j < 20; j++) {
-                bricks.add(new Brick(location_x, location_y, BRICK_WIDTH, BRICK_HEIGHT));
+        for(int i = 0; i < currentLevel; i++) {
+            for(int j = 0; j < 17; j++) {
+                boolean hardBrick = false;
+                int chance = random.nextInt(100);
+                if(chance <= 5 && currentLevel >= 3) hardBrick = true;
+                bricks.add(new Brick(location_x, location_y, BRICK_WIDTH, BRICK_HEIGHT, hardBrick));
                 location_x = bricks.get(bricks.size() - 1).centerX() + bricks.get(bricks.size() - 1).width() / 2 + BRICK_GAP;
             }
             location_x = 0;
@@ -70,16 +80,57 @@ public class Panel extends JPanel implements Runnable {
         draw(g);
     }
     private void draw(Graphics g) {
-        // render-paddle
-        paddle.render(g);
+        if(!gameOver) {
+            if(!levelWon) {
+                if(!gameWon) {
+                    // render-paddle
+                    paddle.render(g);
 
-        // render-ball
-        ball.render(g);
+                    // render-ball
+                    ball.render(g);
 
-        // render-bricks
-        bricks.forEach(brick -> brick.render(g));
+                    // render-bricks
+                    bricks.forEach(brick -> brick.render(g));
+                } else {
+                    g.setColor(Color.ORANGE);
+                    g.setFont(new Font("Arial", Font.BOLD, 40));
+                    g.drawString("GAME WON", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT / 2 - 110);
+                    g.setFont(new Font("Arial", Font.BOLD, 16));
+                    g.drawString("SCORE: " + ball.score(), SCREEN_WIDTH / 2 - 30, SCREEN_HEIGHT / 2 - 80);
+                    g.setColor(Color.WHITE);
+                    g.drawString("NICE JOB", SCREEN_WIDTH / 2 - 30, SCREEN_HEIGHT / 2 - 50);
+                }
+            } else {
+                g.setColor(Color.YELLOW);
+                g.setFont(new Font("Arial", Font.BOLD, 40));
+                g.drawString("LEVEL PASSED", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT / 2 - 110);
+                g.setColor(Color.WHITE);
+                g.setFont(new Font("Arial", Font.BOLD, 16));
+                g.drawString("PRESS SPACE TO CONTINUE", SCREEN_WIDTH / 2 - 85, SCREEN_HEIGHT / 2 - 50);
+            }
+        } else {
+            g.setColor(Color.RED);
+            g.setFont(new Font("Arial", Font.BOLD, 40));
+            g.drawString("GAME OVER", SCREEN_WIDTH / 2 - 110, SCREEN_HEIGHT / 2 - 110);
+            g.setFont(new Font("Arial", Font.BOLD, 16));
+            g.drawString("SCORE: " + ball.score(), SCREEN_WIDTH / 2 - 30, SCREEN_HEIGHT / 2 - 80);
+            g.setColor(Color.BLUE);
+            g.drawString("PRESS SPACE TO RESTART", SCREEN_WIDTH / 2 - 100, SCREEN_HEIGHT / 2 - 50);
+        }
     }
+    private void checkCurrentLevel() {
+        int bricksRemaining = 0;
+        for (Brick brick : bricks)
+            if(brick.status() && !brick.isHardBrick()) bricksRemaining++;
 
+        // player-has-won-the-current-level
+        if(bricksRemaining == 0) {
+            currentLevel ++;
+            score = ball.score();
+            if(currentLevel > 15) gameWon = true;
+            else levelWon = true;
+        }
+    }
     // key-adapter
     private class MyKeyAdapter extends KeyAdapter {
         @Override
@@ -90,6 +141,15 @@ public class Panel extends JPanel implements Runnable {
                 }
                 case KeyEvent.VK_D -> {
                     if(paddle.getDirection() == 's') paddle.changeDirection('r');
+                }
+                case KeyEvent.VK_SPACE -> {
+                    if(gameOver) {
+                        initGame();
+                        gameOver = false;
+                    } else if(levelWon) {
+                        initGame();
+                        levelWon = false;
+                    }
                 }
             }
         }
@@ -114,7 +174,7 @@ public class Panel extends JPanel implements Runnable {
             long now = System.nanoTime();
             delta += (now - lastTime) / ns;
             lastTime = now;
-            if (delta >= 1) {
+            if (delta >= 1 && !gameOver && !levelWon && !gameWon) {
                 // paddle-movement
                 paddle.move(SCREEN_WIDTH);
 
@@ -123,6 +183,15 @@ public class Panel extends JPanel implements Runnable {
 
                 // ball-collisions
                 ball.collide(SCREEN_WIDTH, paddle);
+
+                // bricks-collisions
+                bricks.forEach(brick -> brick.collide(ball));
+
+                // get-game-status
+                gameOver = ball.isGameOver();
+
+                // check-current-level-status
+                checkCurrentLevel();
 
                 repaint();
                 delta --;
