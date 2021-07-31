@@ -35,19 +35,16 @@ public class Panel extends JPanel implements Runnable {
     private int score = 0;
     private final Random random = new Random();
     private boolean AI = true;
+    private Thread gameThread;
 
     // constructor
     Panel() {
         this.setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
         this.setBackground(Color.BLACK);
         this.setFocusable(true);
+        this.addKeyListener(new MyKeyAdapter());
 
         initGame();
-
-        this.addKeyListener(new MyKeyAdapter());
-        Thread gameThread = new Thread(this);
-        gameThread.start();
-
     }
 
     // game-init
@@ -73,6 +70,9 @@ public class Panel extends JPanel implements Runnable {
             location_x = 0;
             location_y = bricks.get(bricks.size() - 1).centerY() + bricks.get(bricks.size() - 1).height() / 2 + BRICK_GAP;
         }
+
+        gameThread = new Thread(this);
+        gameThread.start();
     }
 
     // render
@@ -129,18 +129,24 @@ public class Panel extends JPanel implements Runnable {
         }
     }
     private void checkCurrentLevel() {
-        int bricksRemaining = 0;
-        for (Brick brick : bricks)
-            if(brick.status() && !brick.isHardBrick()) bricksRemaining++;
+        if(!gameOver) {
+            int bricksRemaining = 0;
+            for (Brick brick : bricks)
+                if (brick.status() && !brick.isHardBrick()) bricksRemaining++;
 
-        // player-has-won-the-current-level
-        if(bricksRemaining == 0 && !AI) {
-            currentLevel ++;
-            score = ball.score();
-            if(currentLevel > 15) gameWon = true;
-            else levelWon = true;
+            // player-has-won-the-current-level
+            if (bricksRemaining == 0 && !AI) {
+                currentLevel++;
+                score = ball.score();
+                if (currentLevel > 15) gameWon = true;
+                else levelWon = true;
+                repaint();
+                gameThread.stop();
+            } else if (bricksRemaining == 0) initGame();
+        } else {
+            repaint();
+            gameThread.stop();
         }
-        else if(bricksRemaining == 0) initGame();
     }
     // key-adapter
     private class MyKeyAdapter extends KeyAdapter {
@@ -165,6 +171,7 @@ public class Panel extends JPanel implements Runnable {
                     } else {
                         currentLevel = 1;
                         AI = false;
+                        gameThread.stop();
                         initGame();
                     }
                 }
@@ -191,7 +198,7 @@ public class Panel extends JPanel implements Runnable {
             long now = System.nanoTime();
             delta += (now - lastTime) / ns;
             lastTime = now;
-            if (delta >= 1 && !gameOver && !levelWon && !gameWon) {
+            if (delta >= 1) {
                 // paddle-movement
                 paddle.move(SCREEN_WIDTH);
 
